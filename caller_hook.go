@@ -1,11 +1,11 @@
-package caller
+package config
 
 import (
 	"fmt"
 	"log"
 	"path"
+	"regexp"
 	"runtime"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -143,7 +143,7 @@ func (hook *CallerHook) callerInfo(skipFrames int) string {
 // parent function, and so on.  Any suffixes passed to getCaller are
 // path fragments like "/pkg/log/log.go", and functions in the call
 // stack from that file are ignored.
-func getCaller(callDepth int, suffixesToIgnore ...string) (file string, line int) {
+func getCaller(callDepth int, suffixesToIgnore ...*regexp.Regexp) (file string, line int) {
 	// bump by 1 to ignore the getCaller (this) stackframe
 	callDepth++
 outer:
@@ -157,7 +157,7 @@ outer:
 		}
 
 		for _, s := range suffixesToIgnore {
-			if strings.HasSuffix(file, s) {
+			if s.MatchString(file) {
 				callDepth++
 				continue outer
 			}
@@ -170,5 +170,15 @@ outer:
 //new
 func getCallerIgnoringLogMulti(callDepth int) (string, int) {
 	// the +1 is to ignore this (getCallerIgnoringLogMulti) frame
-	return getCaller(callDepth+1, "logrus/hooks.go", "logrus/entry.go", "logrus/logger.go", "logrus/exported.go", "asm_amd64.s")
+	//"logrus/hooks.go", "logrus/entry.go", "logrus/logger.go", "logrus/exported.go", "asm_amd64.s"
+	//fixed go mod project version tag
+	return getCaller(callDepth+1, SuffixesToIgnoreArray...)
+}
+
+var LogrusRegexp = regexp.MustCompile(`sirupsen/logrus(@.*)?/.*.go`)
+var MiscRegexp = regexp.MustCompile(`zxfonline/misc(@.*)?/log/.*.go`)
+
+var SuffixesToIgnoreArray = []*regexp.Regexp{
+	MiscRegexp,
+	LogrusRegexp,
 }
